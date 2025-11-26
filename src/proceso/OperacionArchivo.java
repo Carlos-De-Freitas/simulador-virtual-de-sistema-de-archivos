@@ -16,7 +16,6 @@ public class OperacionArchivo {
 
     private final TipoOperacionArchivo type;
 
-    // Para CREATE
     private final NodoDirectorio parent;
     private final String name;
     private final int sizeBlocks;
