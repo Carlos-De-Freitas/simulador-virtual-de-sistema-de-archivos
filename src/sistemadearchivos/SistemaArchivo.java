@@ -15,14 +15,14 @@ import estructuras.ListaSimple;
 public class SistemaArchivo {
 
     private final Disco disk;
-    private final DirectoryNode root;
+    private final NodoDirectorio root;
     private int nextFileId;
 
     private final ListaSimple<AsignacionArchivo> allocationTable;
 
     public SistemaArchivo(int numBlocks, User rootUser) {
         this.disk = new Disco(numBlocks);
-        this.root = new DirectoryNode("/", null, rootUser, true);
+        this.root = new NodoDirectorio("/", null, rootUser, true);
         this.nextFileId = 1;
         this.allocationTable = new ListaSimple<>();
     }
@@ -31,7 +31,7 @@ public class SistemaArchivo {
         return disk;
     }
 
-    public DirectoryNode getRoot() {
+    public NodoDirectorio getRoot() {
         return root;
     }
 
@@ -40,7 +40,7 @@ public class SistemaArchivo {
     }
 
     
-    public DirectoryNode createDirectory(DirectoryNode parent, String name,
+    public NodoDirectorio createDirectory(NodoDirectorio parent, String name,
                                          User owner, boolean publico) {
 
         if (!owner.isAdmin()) {
@@ -55,13 +55,13 @@ public class SistemaArchivo {
             throw new IllegalArgumentException("Ya existe un archivo/directorio con ese nombre.");
         }
 
-        DirectoryNode dir = new DirectoryNode(name, parent, owner, publico);
+        NodoDirectorio dir = new NodoDirectorio(name, parent, owner, publico);
         parent.addChild(dir);
         return dir;
     }
 
     
-    public FileNode createFile(DirectoryNode parent, String name, int sizeBlocks,
+    public NodoArchivo createFile(NodoDirectorio parent, String name, int sizeBlocks,
                                User owner, boolean publico, int creatorPid) {
 
         if (!owner.isAdmin()) {
@@ -87,7 +87,7 @@ public class SistemaArchivo {
         int fileId = nextFileId++;
         int firstBlockIndex = allocateBlocksForFile(fileId, sizeBlocks);
 
-        FileNode fileNode = new FileNode(name, parent, owner, publico, fileId, sizeBlocks);
+        NodoArchivo fileNode = new NodoArchivo(name, parent, owner, publico, fileId, sizeBlocks);
         parent.addChild(fileNode);
 
         AsignacionArchivo entry =
@@ -102,7 +102,7 @@ public class SistemaArchivo {
     }
 
 
-    public void renameNode(FsNode node, String newName) {
+    public void renameNode(NodoFs node, String newName) {
 
         if (node == null || node == root) {
             throw new IllegalArgumentException("Nodo inválido para renombrar.");
@@ -111,17 +111,17 @@ public class SistemaArchivo {
             throw new IllegalArgumentException("Nombre inválido.");
         }
 
-        DirectoryNode parent;
+        NodoDirectorio parent;
         if (node.esDirectorio()) {
-            parent = ((DirectoryNode) node).getPadre();
+            parent = ((NodoDirectorio) node).getPadre();
         } else {
-            parent = ((FileNode) node).getPadre();
+            parent = ((NodoArchivo) node).getPadre();
         }
         if (parent == null) {
             throw new IllegalStateException("El nodo no tiene padre.");
         }
 
-        FsNode existing = parent.findChildByName(newName.trim());
+        NodoFs existing = parent.findChildByName(newName.trim());
         if (existing != null && existing != node) {
             throw new IllegalArgumentException("Ya existe otro nodo con ese nombre en el mismo directorio.");
         }
@@ -131,7 +131,7 @@ public class SistemaArchivo {
 
         
         if (!node.esDirectorio()) {
-            FileNode fileNode = (FileNode) node;
+            NodoArchivo fileNode = (NodoArchivo) node;
             AsignacionArchivo entry = findAllocationEntryByFileId(fileNode.getFileId());
             if (entry != null) {
                 entry.setFileName(newName.trim());
@@ -140,7 +140,7 @@ public class SistemaArchivo {
     }
 
 
-    public void deleteNode(FsNode node, User requester) {
+    public void deleteNode(NodoFs node, User requester) {
 
         if (!requester.isAdmin()) {
             throw new SecurityException("Solo el administrador puede eliminar nodos.");
@@ -151,17 +151,17 @@ public class SistemaArchivo {
         }
 
         if (node.esDirectorio()) {
-            DirectoryNode dir = (DirectoryNode) node;
+            NodoDirectorio dir = (NodoDirectorio) node;
             while (dir.getChildrenCount() > 0) {
-                FsNode child = dir.getChildAt(0);
+                NodoFs child = dir.getChildAt(0);
                 deleteNode(child, requester);
             }
-            DirectoryNode parent = dir.getPadre();
+            NodoDirectorio parent = dir.getPadre();
             if (parent != null) {
                 parent.removeChild(dir);
             }
         } else {
-            FileNode fileNode = (FileNode) node;
+            NodoArchivo fileNode = (NodoArchivo) node;
             int fileId = fileNode.getFileId();
 
             AsignacionArchivo entry = findAllocationEntryByFileId(fileId);
@@ -170,7 +170,7 @@ public class SistemaArchivo {
                 removeAllocationEntry(fileId);
             }
 
-            DirectoryNode parent = fileNode.getPadre();
+            NodoDirectorio parent = fileNode.getPadre();
             if (parent != null) {
                 parent.removeChild(fileNode);
             }
